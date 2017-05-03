@@ -1,25 +1,73 @@
 /**
  * Created by Евгений on 03.05.2017.
  */
+
+var CENTER = {
+    X: 614,
+    Y: 509
+};
+
+var RADIUS = 144;
+
+/**
+ * Вызывается после загрузки фоновой картинки (шаблона Хронодекса) на странице
+ */
 function draw() {
-    var CENTER_X = 614;
-    var CENTER_Y = 509;
-    var RADIUSES = [100, 145, 203, 261, 319];
     var ctx = document.getElementById('canvas').getContext('2d');
     var img = new Image();
     img.onload = function() {
-        var sector15min = (Math.PI/180)*(360/48);
         ctx.drawImage(img, 0,0,1200,1000);
-
-        ctx.beginPath();
-        ctx.moveTo(758,509);
-        ctx.arc(CENTER_X,CENTER_Y, RADIUSES[4], 0,sector15min, false);
-        ctx.arc(CENTER_X,CENTER_Y, RADIUSES[3], sector15min, sector15min*2, false);
-        ctx.arc(CENTER_X,CENTER_Y, RADIUSES[2], sector15min*2, sector15min*3, false);
-        ctx.arc(CENTER_X,CENTER_Y, RADIUSES[0], sector15min*3, sector15min*4, false);
-        ctx.arc(CENTER_X, CENTER_Y, RADIUSES[1], sector15min * 4, 0, true);
-        ctx.fill();
+        drawSegment(ctx, '0900', [-2, 4/3, 2/3]);
+        drawSegment(ctx, '1115', [2/3, 4/3, 2/3]);
+        drawSegment(ctx, '1430', [2, 4/3, 2/3]);
+        drawSegment(ctx, '1845', [1, 2/3, 4/3, 2]);
     };
     img.src = 'images/Chronodex.png';
+}
 
+/**
+ * Полностью отрисовывает сегмент, соответствующий одной непрерывной сессии активности
+ * @param ctx                 контекст холста html
+ * @param timeStart           время начала сессии активности
+ * @param productivityLevels  массив уровней продуктивности для каждой 5тиминутки сессии
+ */
+function drawSegment(ctx, timeStart, productivityLevels) {
+    var sector5min = (Math.PI/180)*(360/144);
+
+    ctx.beginPath();
+
+    // Определяем точку старта в зависимости от времени начала активности
+    var startPoint = getSegmentStartPoint(timeStart);
+    console.log(startPoint);
+    ctx.moveTo(startPoint.x,startPoint.y);
+
+    // В цикле рисуем по одному сегменту за раз для каждого значения из productivityLevels
+    productivityLevels.forEach(function(item, index) {
+        var radius = RADIUS + (item / 2) * (item>=0 ? (318 - RADIUS) : (RADIUS - 100));
+        var startAngle = startPoint.angleStart + sector5min * index;
+        ctx.arc(CENTER.X, CENTER.Y, radius, startAngle, startAngle + sector5min, false);
+    });
+    ctx.arc(CENTER.X, CENTER.Y, RADIUS, startPoint.angleStart + sector5min * productivityLevels.length, startPoint.angleStart, true);
+
+    // Определяем стиль заливки и заливаем фигуру
+    ctx.fill();
+}
+/**
+ * Вспомогательная функция для определения начальной точки каждого нового сегмента
+ * @param timeStart Время начала активности
+ * @returns {{x: number, y: number, angleStart: number}} Структура, описывающая начальную точку
+ */
+function getSegmentStartPoint(timeStart) {
+    var hours = timeStart.substr(0,2) * 1 - 15;
+    if (hours < 0) {
+        hours += 12;
+    }
+    var minutes = (timeStart.substr(2,2) * 1) / 5;
+    var angleStart = (Math.PI/180) * ((360/12*hours) + (360/144 * minutes));
+
+    return {
+        x: RADIUS * Math.cos(angleStart) + CENTER.X,
+        y: RADIUS * Math.sin(angleStart) + CENTER.Y,
+        angleStart: angleStart
+    };
 }
